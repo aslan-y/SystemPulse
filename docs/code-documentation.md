@@ -1,6 +1,6 @@
-##SystemPulse - Code-Dokumentation
+## SystemPulse - Code-Dokumentation
 
-#Skriptstruktur
+# Skriptstruktur
 Das SystemPulse-Skript ist in mehrere logische Regionen unterteilt, die verschiedene Aspekte der Funktionalität kapseln:
 ````
 #region SETUP & PREREQUISITES
@@ -10,7 +10,7 @@ Das SystemPulse-Skript ist in mehrere logische Regionen unterteilt, die verschie
 #region REPORT GENERATION
 ````
 
-#Hauptfunktionen und ihre Aufgaben
+# Hauptfunktionen und ihre Aufgaben
 1. Setup & Vorbedingungen
 ````
 # Admin-Check
@@ -128,14 +128,14 @@ Ordnet die Abschnitte in einer definierten Reihenfolge an
 Fügt Kategorie-Icons und Formatierung hinzu
 Speichert den Bericht in der ausgewählten Datei
 
-#Datenfluss
+# Datenfluss
 Initialisierung: Überprüfung der Vorbedingungen, Anzeige des Dateiauswahldialogs
 Datensammlung: Jede Systemkomponente wird analysiert und die Ergebnisse im $SystemData-Hashtable gespeichert
 Analyse: Kritische Punkte werden identifiziert und in eine Zusammenfassung extrahiert
 Berichtsgenerierung: Die Daten werden strukturiert und formatiert
 Ausgabe: Der Bericht wird in eine Datei geschrieben und wichtige Informationen in der Konsole angezeigt
 
-#Erweiterungspunkte
+# Erweiterungspunkte
 Neue Datensammler hinzufügen
 ````
 # Neuer Datensammler
@@ -162,7 +162,7 @@ $categoryIcon = switch ($section) {
 }
 ````
 
-#Hinweise zur Fehlerbehandlung
+# Hinweise zur Fehlerbehandlung
 Das Skript verwendet durchgängig Try-Catch-Blöcke und -ErrorAction SilentlyContinue, um robustes Verhalten bei Fehlern zu gewährleisten. Jede Komponente ist isoliert, sodass ein Fehler in einem Bereich nicht das gesamte Skript beeinträchtigt.
 
 Diese Dokumentation bietet einen Überblick über die Struktur und Funktionsweise des SystemPulse-Skripts und dient als Referenz für zukünftige Erweiterungen und Anpassungen.
