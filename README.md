@@ -62,4 +62,6 @@ MIT-Lizenz - siehe LICENSE
 #Autor
 Yasin Aslan
 
+Hinweis: Dieses Skript wurde für diagnostische Zwecke entwickelt und nimmt keine Änderungen an deinem System vor. Alle erhobenen Daten werden ausschließlich lokal gespeichert.
+
 
