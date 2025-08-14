@@ -57,7 +57,7 @@ Kerberos-Ticket-Status und LDAP-Konnektivität
 Detaillierte Computerkonteninformationen
 
 #📜 Lizenz
-MIT-Lizenz - siehe LICENSE
+MIT-Lizenz
 
 #Autor
 Yasin Aslan
