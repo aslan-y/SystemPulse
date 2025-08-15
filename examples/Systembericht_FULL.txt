@@ -1,83 +1,89 @@
-﻿====================================
-📋 SYSTEMBERICHT 2025-08-14 23:06
 ====================================
-🔑 Ausgeführt als: LAPTOP\Administrator
-🖥  Computername: LAPTOP
+📋 SYSTEMBERICHT 2025-07-15 10:30
+====================================
+🔑 Ausgeführt als: DESKTOP-EXAMPLE\Administrator
+🖥 Computername: DESKTOP-EXAMPLE
 👤 Admin-Rechte: True
 ====================================
 📊 ZUSAMMENFASSUNG:
 
 ⚠️ ZUSAMMENFASSUNG KRITISCHER PUNKTE
 
-DefenderStatus: 🟡 Letzter Komplett-Scan: Nie durchgeführt
-SystemEvents: 🟡 Kritische Systemereignisse gefunden:
-SecurityLog: 🟡 Letzte fehlgeschlagene Logons:
+DefenderStatus: 🟡 Signatur-Alter: 5 Tage
+NetworkTest: 🔴 Internet (8.8.8.8) nicht erreichbar
+DiskUsage: 🟡 C: 9.76% frei (12.5 GB)
 Services: 🟡 Automatische Dienste nicht gestartet:
-ActiveDirectoryInfo: 🟡 Computer ist NICHT Teil einer Domäne. Arbeitsgruppe: WORKGROUP
+SystemEvents: 🟡 Kritische Systemereignisse gefunden:
 
 ====================================
 📂 SystemInfo:
 🖥️ SYSTEM
 
-💻 Hersteller: ASUSTeK COMPUTER INC.
-🖥 Modell: Vivobook_ASUSLaptop M3500QA_M3500QA
-📜 BIOS-Version: M3500QA.312
-📅 BIOS-Datum: 25.05.2023
-🪟 Betriebssystem: Microsoft Windows 11 Home
-🏗 Build: 26100
-🕒 Letzter Neustart: 2025-08-12 19:51:38
+💻 Hersteller: Dell Inc.
+🖥 Modell: XPS 15 9500
+📜 BIOS-Version: 1.12.0
+📅 BIOS-Datum: 12.02.2025
+🪟 Betriebssystem: Microsoft Windows 11 Pro
+🏗 Build: 25950
+🕒 Letzter Neustart: 2025-07-13 08:15:22
 ====================================
 📂 ActiveDirectoryInfo:
 🌐 ACTIVE DIRECTORY
 
-🟡 Computer ist NICHT Teil einer Domäne. Arbeitsgruppe: WORKGROUP
-====================================
-📂 WindowsUpdates:
-🔄 UPDATES
+🟢 Computer ist Mitglied der Domäne: example.local
+Domänenrolle: Domänenmitglied
 
-🟢 Windows-Updates: Letztes Update vor 2 Tagen
+--- Domänen-Informationen ---
+Domänenname (NetBIOS): EXAMPLE
+Domänenname (DNS): example.local
+Funktionsebene: Windows2016Domain
+PDC-Emulator: DC01.example.local
+🟢 PDC-Erreichbarkeit: True
 
--- Letzte 10 Windows-Updates --
-
-Source Description     HotFixID  InstalledBy         InstalledOn
------- -----------     --------  -----------         -----------
-LAPTOP Update          KB5056579 NT-AUTORITÄT\SYSTEM 12.08.2025 00:00:00
-LAPTOP Update          KB5050575 NT-AUTORITÄT\SYSTEM 11.08.2025 00:00:00
-LAPTOP Update          KB5059093 NT-AUTORITÄT\SYSTEM 11.08.2025 00:00:00
-LAPTOP Security Update KB5062553 NT-AUTORITÄT\SYSTEM 11.08.2025 00:00:00
-LAPTOP Security Update KB5063666 NT-AUTORITÄT\SYSTEM 11.08.2025 00:00:00
-
-
+--- Computer-Kontoinformationen ---
+Erstellungsdatum: 01.05.2025
+Letzte Kennwortänderung: 01.07.2025
+🟢 Konto aktiv: True
+Letzte Anmeldung: 15.07.2025 09:45:22
 ====================================
 📂 HardwareDetails:
 🔧 HARDWARE
 
 --- CPU ---
-Prozessor: AMD Ryzen 7 5800H with Radeon Graphics         
-Kerne: 8 | Logische Prozessoren: 16
-Max. Taktrate: 3.2 GHz
+Prozessor: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
+Kerne: 6 | Logische Prozessoren: 12
+Max. Taktrate: 2.6 GHz
 
 --- RAM ---
-Gesamt: 15.4 GB
+Gesamt: 32.0 GB
 Belegte Slots: 2
-  - 8 GB @ 3200 MHz (Samsung)
-  - 8 GB @ 3200 MHz (Samsung)
+  - 16 GB @ 2933 MHz (Kingston)
+  - 16 GB @ 2933 MHz (Kingston)
 
 --- Grafikkarten ---
-  - AMD Radeon(TM) Graphics - RAM: 0.5 GB
+  - NVIDIA GeForce RTX 3050 Ti - RAM: 4 GB
     Auflösung: 1920x1080
+  - Intel(R) UHD Graphics - RAM: 1 GB
+    Auflösung: 3840x2160
 ====================================
 📂 PerformanceInfo:
 ⚡ LEISTUNG
 
-🟢 CPU-Auslastung: 3 %
-🟢 Verfügbarer RAM: 7882 MB
-Prozesse gesamt: 204
+🟡 CPU-Auslastung: 82 %
+🟢 Verfügbarer RAM: 14532 MB
+Prozesse gesamt: 186
 ====================================
 📂 DiskHealth:
 💽 SPEICHER
 
-🟢 INTEL SSDPEKNU512GZ - 477GB - Zustand: Healthy
+🟢 Samsung SSD 970 EVO Plus 1TB - 953GB - Zustand: Healthy
+  - Medientyp: SSD
+  - Modell: Samsung SSD 970 EVO Plus 1TB
+  - Busprotokolle: NVMe
+  - SMART-Daten:
+    • Betriebsstunden: 3456 Stunden
+    • Temperatur: 42°C
+    🟢 Keine Lese-/Schreibfehler gefunden
 ====================================
 📂 DiskUsage:
 💾 SPEICHERNUTZUNG
@@ -85,130 +91,102 @@ Prozesse gesamt: 204
 
 Name Gesamt(GB) Belegt(GB) Frei(GB) Frei (%)
 ---- ---------- ---------- -------- --------
-C        476,03      59,30   416,73    87,54
+C        953,87     861,37    92,50     9,76
+D        465,76      98,25   367,51    78,90
 
 
+Laufwerke mit kritisch wenig freiem Speicher:
+🟡 C: 9.76% frei (92.5 GB)
+
+Temporäre Dateien:
+🟡 Temp-Ordner: 3.5 GB
+  Pfad: C:\Users\Administrator\AppData\Local\Temp
+  Empfehlung: Temp-Ordner bereinigen um Speicherplatz freizugeben
 ====================================
 📂 BitLockerStatus:
 🔐 VERSCHLÜSSELUNG
 
 
-MountPoint   VolumeStatus EncryptionMethod Verschlüsselt(%)
-----------   ------------ ---------------- ----------------
-C:         FullyDecrypted             None             0,00
+MountPoint   VolumeStatus   EncryptionMethod Verschlüsselt(%)
+----------   ------------   ---------------- ----------------
+C:         FullyEncrypted              XtsAes           100,00
+D:         FullyDecrypted               None             0,00
 
 
+Wiederherstellungsschlüssel-Status:
+🟢 C: Wiederherstellungsschlüssel vorhanden: True
+  • TPM-Schutz aktiv
+🟡 D: Wiederherstellungsschlüssel vorhanden: False
+  • Empfehlung: Wiederherstellungsschlüssel erstellen und sichern
 ====================================
 📂 NetworkTest:
 🌐 NETZWERK
 
-🟢 Gateway 192.168.178.1 erreichbar
-🟢 Internet (8.8.8.8) erreichbar
+🟢 Gateway 192.168.1.1 erreichbar
+🔴 Internet (8.8.8.8) nicht erreichbar
 ====================================
 📂 NetworkAdapters:
 📡 NETZWERKADAPTER
 
---- WLAN (MediaTek Wi-Fi 6 MT7921 Wireless LAN Card) ---
+--- Ethernet (Intel(R) Ethernet Connection I219-V) ---
+Status: Up | Geschwindigkeit: 1 Gbps
+IPv4: 192.168.1.25
+IPv6: fe80::5c46:3a1b:b825:6d1c%3
+DNS-Server: 192.168.1.10, 192.168.1.11
+
+--- WLAN (Intel(R) Wi-Fi 6 AX201 160MHz) ---
 Status: Up | Geschwindigkeit: 866.7 Mbps
-IPv4: 192.168.178.77
-IPv6: fe80::bb:d12f:1877:4ba9%4
-DNS-Server: 192.168.178.1, fd00::464e:6dff:fee7:70eb, 2a02:8108:8b01:b00:464e:6dff:fee7:70eb, fd00::464e:6dff:fee7:70eb, 2a02:8108:8b01:b00:464e:6dff:fee7:70eb
+IPv4: 192.168.1.26
+IPv6: fe80::84a6:c1ff:fe9b:8e14%6
+DNS-Server: 192.168.1.10, 192.168.1.11
 
 WLAN-Details:
-
+SSID                   : ExampleWiFi
+Authentifizierung    : WPA2-Personal
+Funktyp               : 802.11ax
+Kanal                 : 36
 ====================================
 📂 NetworkConnections:
 🔌 NETZWERKVERBINDUNGEN
 
 Aktive Verbindungen:
-  TCP    0.0.0.0:135            0.0.0.0:0              ABHÖREN         1656
+  TCP    0.0.0.0:135            0.0.0.0:0              ABHÖREN         888
   TCP    0.0.0.0:445            0.0.0.0:0              ABHÖREN         4
-  TCP    0.0.0.0:5040           0.0.0.0:0              ABHÖREN         7044
-  TCP    0.0.0.0:49664          0.0.0.0:0              ABHÖREN         1388
-  TCP    0.0.0.0:49665          0.0.0.0:0              ABHÖREN         1208
-  TCP    0.0.0.0:49666          0.0.0.0:0              ABHÖREN         2764
-  TCP    0.0.0.0:49667          0.0.0.0:0              ABHÖREN         2860
-  TCP    0.0.0.0:49668          0.0.0.0:0              ABHÖREN         3916
-  TCP    0.0.0.0:49669          0.0.0.0:0              ABHÖREN         1356
-  TCP    127.0.0.1:6463         0.0.0.0:0              ABHÖREN         13208
-  TCP    127.0.0.1:24830        0.0.0.0:0              ABHÖREN         1284
-  TCP    192.168.178.77:139     0.0.0.0:0              ABHÖREN         4
-  TCP    192.168.178.77:53576   20.42.73.27:443        HERGESTELLT     15876
-  TCP    192.168.178.77:53616   4.225.11.192:443       HERGESTELLT     15464
-  TCP    192.168.178.77:53617   4.225.11.192:443       HERGESTELLT     15876
-  TCP    192.168.178.77:53618   140.82.112.21:443      HERGESTELLT     15464
-  TCP    192.168.178.77:53622   20.50.88.245:443       HERGESTELLT     15212
-  TCP    192.168.178.77:53641   162.159.136.234:443    HERGESTELLT     12640
-  TCP    192.168.178.77:53646   140.82.114.22:443      HERGESTELLT     15876
-  TCP    192.168.178.77:53662   48.209.108.32:443      HERGESTELLT     4416
-  TCP    [::]:135               [::]:0                 ABHÖREN         1656
-  TCP    [::]:445               [::]:0                 ABHÖREN         4
-  TCP    [::]:49664             [::]:0                 ABHÖREN         1388
-  TCP    [::]:49665             [::]:0                 ABHÖREN         1208
-  TCP    [::]:49666             [::]:0                 ABHÖREN         2764
-  TCP    [::]:49667             [::]:0                 ABHÖREN         2860
-  TCP    [::]:49668             [::]:0                 ABHÖREN         3916
-  TCP    [::]:49669             [::]:0                 ABHÖREN         1356
-  TCP    [::1]:42050            [::]:0                 ABHÖREN         14432
-  TCP    [2a02:8108:8b01:b00:44ea:624a:5e09:6759]:49412  [2603:1020:206:d::1]:443  HERGESTELLT     4188
-  TCP    [2a02:8108:8b01:b00:44ea:624a:5e09:6759]:53225  [2603:1020:206:d::1]:443  HERGESTELLT     16228
-  TCP    [2a02:8108:8b01:b00:44ea:624a:5e09:6759]:53422  [2a02:26f0:e200::58dd:7b4b]:443  HERGESTELLT     5172
-  TCP    [2a02:8108:8b01:b00:44ea:624a:5e09:6759]:53647  [2a02:26f0:e200::217:522b]:443  HERGESTELLT     13412
-  UDP    0.0.0.0:5050           *:*                                    7044
-  UDP    0.0.0.0:5353           *:*                                    1640
-  UDP    0.0.0.0:5353           *:*                                    2008
-  UDP    0.0.0.0:5353           *:*                                    1640
-  UDP    0.0.0.0:5355           *:*                                    2008
-  UDP    0.0.0.0:53732          *:*                                    2008
-  UDP    0.0.0.0:55171          *:*                                    2008
-  UDP    0.0.0.0:60513          *:*                                    2008
-  UDP    0.0.0.0:62080          *:*                                    2008
-  UDP    127.0.0.1:1900         *:*                                    11484
-  UDP    127.0.0.1:49664        127.0.0.1:49664                        4156
-  UDP    127.0.0.1:63141        *:*                                    11484
-  UDP    192.168.178.77:137     *:*                                    4
-  UDP    192.168.178.77:138     *:*                                    4
-  UDP    192.168.178.77:1900    *:*                                    11484
-  UDP    192.168.178.77:63140   *:*                                    11484
-  UDP    [::]:5353              *:*                                    2008
-  UDP    [::]:5353              *:*                                    1640
-  UDP    [::]:5355              *:*                                    2008
-  UDP    [::]:53732             *:*                                    2008
-  UDP    [::]:55171             *:*                                    2008
-  UDP    [::]:60513             *:*                                    2008
-  UDP    [::]:62080             *:*                                    2008
-  UDP    [::1]:1900             *:*                                    11484
-  UDP    [::1]:63139            *:*                                    11484
-  UDP    [fe80::bb:d12f:1877:4ba9%4]:1900  *:*                                    11484
-  UDP    [fe80::bb:d12f:1877:4ba9%4]:63138  *:*                                    11484
-
+  TCP    0.0.0.0:5040           0.0.0.0:0              ABHÖREN         2380
+  TCP    127.0.0.1:6463         0.0.0.0:0              ABHÖREN         5472
+  TCP    127.0.0.1:27017        0.0.0.0:0              ABHÖREN         2536
+  TCP    192.168.1.25:139       0.0.0.0:0              ABHÖREN         4
+  TCP    192.168.1.25:49670     20.190.145.165:443     HERGESTELLT     9460
+  TCP    192.168.1.25:49682     52.96.165.154:443      HERGESTELLT     9460
+  TCP    192.168.1.25:49701     40.126.35.80:443       HERGESTELLT     9460
+  TCP    192.168.1.25:49705     20.189.173.12:443      HERGESTELLT     9460
+  UDP    0.0.0.0:5353           *:*                                    1176
+  UDP    0.0.0.0:5355           *:*                                    1176
+  UDP    127.0.0.1:1900         *:*                                    5472
+  UDP    192.168.1.25:137       *:*                                    4
+  UDP    192.168.1.25:138       *:*                                    4
 ====================================
 📂 InstalledSoftware:
 📦 SOFTWARE
 
 
-DisplayName                                             DisplayVersion   Publisher
------------                                             --------------   ---------
-Microsoft 365 - de-de                                   16.0.19029.20156 Microsoft Corporation
-Microsoft OneDrive                                      25.137.0715.0001 Microsoft Corporation
-Microsoft Visual Studio Code                            1.103.1          Microsoft Corporation
-Office 16 Click-to-Run Extensibility Component          16.0.19029.20156 Microsoft Corporation
-Office 16 Click-to-Run Licensing Component              16.0.19029.20156 Microsoft Corporation
-Office 16 Click-to-Run Localization Component           16.0.19029.20156 Microsoft Corporation
-PowerShell 7-x64                                        7.5.2.0          Microsoft Corporation
-PyCharm 2025.2.0.1                                      252.23892.515    JetBrains s.r.o.
-Python 3.13.6 Add to Path (64-bit)                      3.13.6150.0      Python Software Foundation
-Python 3.13.6 Core Interpreter (64-bit debug)           3.13.6150.0      Python Software Foundation
-Python 3.13.6 Core Interpreter (64-bit symbols)         3.13.6150.0      Python Software Foundation
-Python 3.13.6 Core Interpreter (64-bit)                 3.13.6150.0      Python Software Foundation
-Python 3.13.6 Development Libraries (64-bit debug)      3.13.6150.0      Python Software Foundation
-Python 3.13.6 Development Libraries (64-bit)            3.13.6150.0      Python Software Foundation
-Python 3.13.6 Documentation (64-bit)                    3.13.6150.0      Python Software Foundation
-Python 3.13.6 Executables (64-bit debug)                3.13.6150.0      Python Software Foundation
-Python 3.13.6 Executables (64-bit symbols)              3.13.6150.0      Python Software Foundation
-Python 3.13.6 Executables (64-bit)                      3.13.6150.0      Python Software Foundation
-Python 3.13.6 Freethreaded Interpreter (64-bit debug)   3.13.6150.0      Python Software Foundation
-Python 3.13.6 Freethreaded Interpreter (64-bit symbols) 3.13.6150.0      Python Software Foundation
+DisplayName                            DisplayVersion   Publisher
+-----------                            --------------   ---------
+Microsoft 365 Apps for enterprise      16.0.19081.20002 Microsoft Corporation
+Mozilla Firefox                        124.0.1          Mozilla Corporation
+Google Chrome                          124.1.0.567.88   Google LLC
+Adobe Acrobat Reader                   25.0.10.20025    Adobe Inc.
+7-Zip                                  24.01            Igor Pavlov
+Microsoft Teams                        25.187.5030.0    Microsoft Corporation
+Slack                                  4.36.140         Slack Technologies
+Notepad++                              8.6.4            Notepad++ Team
+VLC media player                       3.0.20           VideoLAN
+Python 3.13.0                          3.13.150.0       Python Software Foundation
+Node.js                                20.11.1          Node.js Foundation
+Git                                    2.43.0           The Git Development Community
+Microsoft Visual Studio Code           1.87.0           Microsoft Corporation
+Docker Desktop                         4.27.0           Docker Inc.
+Spotify                                1.2.25.1011      Spotify AB
 
 
 ====================================
@@ -217,12 +195,12 @@ Python 3.13.6 Freethreaded Interpreter (64-bit symbols) 3.13.6150.0      Python 
 
 🟡 Automatische Dienste nicht gestartet:
 
-Name       DisplayName                                 Status
-----       -----------                                 ------
-brave      Brave Update-Dienst (brave)                Stopped
-edgeupdate Microsoft Edge Update Service (edgeupdate) Stopped
-MapsBroker Manager für heruntergeladene Karten        Stopped
-sppsvc     Software Protection                        Stopped
+Name          DisplayName                     Status
+----          -----------                     ------
+wuauserv      Windows Update                  Stopped
+wscsvc        Sicherheitscenter               Stopped
+XblGameSave   Xbox Live-Spielespeicherstand   Stopped
+RemoteRegistry Remoteregistrierung            Stopped
 
 
 ====================================
@@ -231,24 +209,36 @@ sppsvc     Software Protection                        Stopped
 
 --- System-Autostart ---
   - SecurityHealth: C:\WINDOWS\system32\SecurityHealthSystray.exe
+  - RtkAudUService: C:\Program Files\Realtek\Audio\HDA\RtkAudUService64.exe -background
 
 --- Benutzer-Autostart ---
-  - MicrosoftEdgeAutoLaunch_98769996E24836F99EC8617644423B4C: "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --no-startup-window --win-session-start
   - OneDrive: "C:\Program Files\Microsoft OneDrive\OneDrive.exe" /background
   - Discord: "C:\Users\Administrator\AppData\Local\Discord\Update.exe" --processStart Discord.exe
+  - Spotify: "C:\Users\Administrator\AppData\Roaming\Spotify\Spotify.exe" --minimized
+  - Teams: "C:\Users\Administrator\AppData\Local\Microsoft\Teams\Update.exe" --processStart "Teams.exe"
 
 --- Autostart-Ordner ---
-  Keine Einträge gefunden
+  - Slack.lnk
+  - Microsoft Edge.lnk
+
+--- Task Scheduler Autostart-Aufgaben ---
+  - OneDrive Standby Reminder
+  - Adobe Acrobat Update Task
+  - GoogleUpdateTaskMachineUA
+
+🟡 Gesamtzahl Autostart-Einträge: 12
+  - Hinweis: Viele Autostart-Programme können den Systemstart verlangsamen
+  - Überprüfen Sie nicht benötigte Einträge mit dem Task-Manager (Autostart-Tab)
 ====================================
 📂 DefenderStatus:
 🛡️ SICHERHEIT
 
 🟢 Echtzeit-Schutz: True
 🟢 Antivirus aktiviert: True
-🟢 Signatur-Alter: 0 Tage
-Signatur-Version: 1.435.183.0
-Letzte Signatur-Aktualisierung: 08/14/2025 15:00:46
-🟡 Letzter Komplett-Scan: Nie durchgeführt
+🟡 Signatur-Alter: 5 Tage
+Signatur-Version: 1.433.197.0
+Letzte Signatur-Aktualisierung: 07/10/2025 09:15:22
+🟢 Letzter Komplett-Scan vor: 12 Tagen
 
 --- Schutzfunktionen ---
 🟢 Manipulationsschutz: True
@@ -268,11 +258,11 @@ Letzte Signatur-Aktualisierung: 08/14/2025 15:00:46
 
 TimeCreated         Konto
 -----------         -----
-14.08.2025 22:53:47 Administrator
-14.08.2025 22:53:39 Administrator
-14.08.2025 22:53:39 Administrator
-14.08.2025 22:42:10 Administrator
-12.08.2025 22:56:06 Administrator
+15.07.2025 08:42:13 Administrator
+15.07.2025 08:42:05 Administrator
+14.07.2025 16:33:21 ExampleUser
+14.07.2025 16:33:15 ExampleUser
+13.07.2025 09:01:37 Administrator
 
 
 ====================================
@@ -282,24 +272,24 @@ TimeCreated         Konto
 
 -- CPU Top 5 --
 
-Name        CPU
-----        ---
-dwm     1399,55
-System   978,09
-Copilot  551,48
-Discord  480,22
-Code     269,02
+Name           CPU
+----           ---
+chrome.exe  1245,33
+msedge.exe   867,21
+Teams.exe    453,18
+explorer.exe 321,56
+Code.exe     298,74
 
 
 -- RAM Top 5 --
 
 Name               RAM(MB)
 ----               -------
-Code                634,50
-Code                550,90
-explorer            387,70
-Memory Compression  355,90
-Discord             311,80
+chrome.exe          1256,30
+msedge.exe           875,45
+Teams.exe            564,22
+Code.exe             512,80
+Memory Compression   405,60
 
 
 ====================================
@@ -308,77 +298,25 @@ Discord             311,80
 
 🟡 Kritische Systemereignisse gefunden:
 
-TimeCreated         Typ       Id Quelle                                                    Nachricht
------------         ---       -- ------                                                    ---------
-14.08.2025 22:38:40 Fehler  1796 Microsoft-Windows-TPM-WMI                                 Beim Update für den sicheren
-                                                                                           Start konnte eine Variable
-                                                                                           für den sicheren Start nicht
-                                                                                           aktualisiert werden. Fehler:
-                                                                                           Sicheres Starten ist auf
-                                                                                           diesem Computer nicht
-                                                                                           aktiviert.. Weitere
-                                                                                           Informationen finden Sie
-                                                                                           unter https://go.microsoft.co
-                                                                                           m/fwlink/?linkid=2169931
-14.08.2025 22:38:40 Fehler  1796 Microsoft-Windows-TPM-WMI                                 Beim Update für den sicheren
-                                                                                           Start konnte eine Variable
-                                                                                           für den sicheren Start nicht
-                                                                                           aktualisiert werden. Fehler:
-                                                                                           Sicheres Starten ist auf
-                                                                                           diesem Computer nicht
-                                                                                           aktiviert.. Weitere
-                                                                                           Informationen finden Sie
-                                                                                           unter https://go.microsoft.co
-                                                                                           m/fwlink/?linkid=2169931
-12.08.2025 19:56:49 Fehler  1796 Microsoft-Windows-TPM-WMI                                 Beim Update für den sicheren
-                                                                                           Start konnte eine Variable
-                                                                                           für den sicheren Start nicht
-                                                                                           aktualisiert werden. Fehler:
-                                                                                           Sicheres Starten ist auf
-                                                                                           diesem Computer nicht
-                                                                                           aktiviert.. Weitere
-                                                                                           Informationen finden Sie
-                                                                                           unter https://go.microsoft.co
-                                                                                           m/fwlink/?linkid=2169931
-12.08.2025 19:56:49 Fehler  1796 Microsoft-Windows-TPM-WMI                                 Beim Update für den sicheren
-                                                                                           Start konnte eine Variable
-                                                                                           für den sicheren Start nicht
-                                                                                           aktualisiert werden. Fehler:
-                                                                                           Sicheres Starten ist auf
-                                                                                           diesem Computer nicht
-                                                                                           aktiviert.. Weitere
-                                                                                           Informationen finden Sie
-                                                                                           unter https://go.microsoft.co
-                                                                                           m/fwlink/?linkid=2169931
-12.08.2025 19:51:50 Fehler  2042 Microsoft-Windows-Windows Firewall With Advanced Security Config Read-Fehler
-12.08.2025 19:51:23 Fehler 10010 Microsoft-Windows-DistributedCOM                          Der Server "{740FE937-01F7-44
-                                                                                           82-AA62-C83F0AD3D6D0}"
-                                                                                           konnte innerhalb des
-                                                                                           angegebenen Zeitabschnitts
-                                                                                           mit DCOM nicht registriert
-                                                                                           werden.
-12.08.2025 19:51:23 Fehler 10010 Microsoft-Windows-DistributedCOM                          Der Server "{6FA05A24-B1DF-41
-                                                                                           55-909E-7B424F2D2BB5}"
-                                                                                           konnte innerhalb des
-                                                                                           angegebenen Zeitabschnitts
-                                                                                           mit DCOM nicht registriert
-                                                                                           werden.
-12.08.2025 19:51:23 Fehler 10010 Microsoft-Windows-DistributedCOM                          Der Server "{740FE937-01F7-44
-                                                                                           82-AA62-C83F0AD3D6D0}"
-                                                                                           konnte innerhalb des
-                                                                                           angegebenen Zeitabschnitts
-                                                                                           mit DCOM nicht registriert
-                                                                                           werden.
-12.08.2025 19:51:22 Fehler 10010 Microsoft-Windows-DistributedCOM                          Der Server "{6FA05A24-B1DF-41
-                                                                                           55-909E-7B424F2D2BB5}"
-                                                                                           konnte innerhalb des
-                                                                                           angegebenen Zeitabschnitts
-                                                                                           mit DCOM nicht registriert
-                                                                                           werden.
-12.08.2025 19:43:12 Fehler  7011 Service Control Manager                                   Das Zeitlimit (30000 ms)
-                                                                                           wurde beim Warten auf eine
-                                                                                           Transaktionsrückmeldung von
-                                                                                           Dienst ASUSSystemAnalysis
-                                                                                           erreicht.
-
-
+TimeCreated         Typ       Id Quelle                                    Nachricht
+-----------         ---       -- ------                                    ---------
+15.07.2025 09:42:23 Fehler  1000 Application Error                         Fehlgeschlagene Anwendung
+                                                                           chrome.exe, Version
+                                                                           124.1.0.567.88, fehlgeschlagenes
+                                                                           Modul KERNELBASE.dll,
+                                                                           Version 10.0.25950.1000,
+                                                                           Fehlercode 0xe0434352
+15.07.2025 08:15:35 Fehler  7031 Service Control Manager                   Der Dienst "Windows Update"
+                                                                           wurde unerwartet beendet. Dies
+                                                                           ist bereits 1 Mal passiert.
+14.07.2025 22:35:12 Fehler 10010 Microsoft-Windows-DistributedCOM          Der Server "{D63B10C5-BB46-4990
+                                                                           -A94F-E40B9D520160}" konnte
+                                                                           innerhalb des angegebenen
+                                                                           Zeitabschnitts mit DCOM nicht
+                                                                           registriert werden.
+14.07.2025 18:42:53 Fehler   219 Microsoft-Windows-Kernel-PnP              Der Treiber \Driver\WudfRd konnte
+                                                                           für das Gerät USB\VID_046D&PID_C
+                                                                           52B\6&1A2F720C&0&4 nicht geladen
+                                                                           werden.
+13.07.2025 08:14:27 Fehler  6008 EventLog                                  Das System wurde zuvor
+                                                                           unerwartet heruntergefahren.
