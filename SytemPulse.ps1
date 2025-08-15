@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 
 <#
 .SYNOPSIS
@@ -22,8 +22,8 @@
 
 .NOTES
     Author:        Yasin Aslan
-    Version:       1.0
-    LastModified:  2025-08-12
+    Version:       1.1
+    LastModified:  2025-08-15
     Requires:      PowerShell 5.1 oder höher, Administratorrechte
     OS Support:    Windows 10/11, Windows Server 2016+
     # Copyright (c) 2025 Yasin Aslan
@@ -48,7 +48,105 @@ $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIde
 
 if (-not $isAdmin) { 
     Write-Error "❌ Dieses Skript muss mit Adminrechten ausgeführt werden!" 
-    exit 
+    exit 1
+}
+
+# PowerShell-Umgebung optimieren
+$ErrorActionPreference = "Continue"
+$ProgressPreference = "SilentlyContinue"  # Beschleunigt Operationen durch Verstecken von Fortschrittsbalken
+
+# Importieren des notwendigen Namespace für Runspaces
+Add-Type -AssemblyName System.Management.Automation
+
+# Jobs-Throttling für parallele Verarbeitung
+$maxJobs = 4  # Maximale Anzahl gleichzeitiger Jobs
+$runspacePool = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspacePool(1, $maxJobs)
+$runspacePool.Open()
+
+# Ermitteln des ausführenden und angemeldeten Benutzers
+$currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$currentUser = $currentIdentity.Name
+$elevatedContext = $isAdmin -and $currentUser -match "\\[^\\]+$" -and $currentUser -notmatch [regex]::Escape("SYSTEM")
+
+# Ermitteln des tatsächlich am System angemeldeten Benutzers (falls Script als Admin ausgeführt wird)
+$actualLoggedInUser = $null
+try {
+    # Alternative 1: Über Registry LastLoggedOnUser (zuverlässigster Weg)
+    $lastUser = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI" -Name LastLoggedOnUser -ErrorAction SilentlyContinue
+    if ($lastUser -and $lastUser.LastLoggedOnUser) {
+        $actualLoggedInUser = $lastUser.LastLoggedOnUser
+        Write-Host "Ermittelter angemeldeter Benutzer (Registry): $actualLoggedInUser" -ForegroundColor Cyan
+    }
+    
+    # Alternative 2: Über Abfrage der aktiven Explorer-Prozesse (wenn Registry nicht funktioniert)
+    if (-not $actualLoggedInUser) {
+        $explorerProcesses = Get-Process -Name explorer -IncludeUserName -ErrorAction SilentlyContinue | 
+                             Where-Object { $_.UserName -and $_.UserName -ne "" } | 
+                             Select-Object -First 1 -ExpandProperty UserName
+        if ($explorerProcesses) {
+            $actualLoggedInUser = $explorerProcesses
+            Write-Host "Ermittelter angemeldeter Benutzer (Explorer): $actualLoggedInUser" -ForegroundColor Cyan
+        }
+    }
+    
+    # Alternative 3: QUERY USER-Befehl (als Fallback)
+    if (-not $actualLoggedInUser) {
+        $queryUser = query user 2>&1
+        if ($queryUser -notmatch "No User exists") {
+            $activeSession = $queryUser | Select-Object -Skip 1 | Where-Object {$_ -match "Active"} | Select-Object -First 1
+            if ($activeSession -match '(\S+)\s+.*') {
+                $username = $Matches[1]
+                $domain = $env:USERDOMAIN
+                $actualLoggedInUser = "$domain\$username"
+                Write-Host "Ermittelter angemeldeter Benutzer (Query): $actualLoggedInUser" -ForegroundColor Cyan
+            }
+        }
+    }
+    
+    # Fallback auf WMI (wird jetzt als letzte Option verwendet)
+    if (-not $actualLoggedInUser) {
+        $loggedInUsers = Get-WmiObject Win32_LoggedOnUser -ErrorAction SilentlyContinue | 
+                         Where-Object { $_.Antecedent -match 'Domain="([^"]+)",Name="([^"]+)"' } |
+                         ForEach-Object { 
+                             $domain = $Matches[1]
+                             $username = $Matches[2]
+                             if ($domain -ne "NT AUTHORITY" -and $domain -ne "Window Manager" -and 
+                                 $domain -ne "DWM-1" -and $domain -ne "Font Driver Host") {
+                                 "$domain\$username"
+                             }
+                         } | Select-Object -Unique
+                             
+        if ($loggedInUsers -and $loggedInUsers.Count -gt 0) {
+            # Bevorzuge Domänenbenutzer gegenüber lokalen Benutzern
+            $domainUsers = $loggedInUsers | Where-Object { $_ -notmatch "^$env:COMPUTERNAME\\" }
+            if ($domainUsers -and $domainUsers.Count -gt 0) {
+                $actualLoggedInUser = $domainUsers[0]
+                Write-Host "Ermittelter angemeldeter Benutzer (WMI): $actualLoggedInUser" -ForegroundColor Cyan
+            } else {
+                $actualLoggedInUser = $loggedInUsers[0]
+                Write-Host "Ermittelter angemeldeter Benutzer (WMI): $actualLoggedInUser" -ForegroundColor Cyan
+            }
+        }
+    }
+    
+    # Ansatz 2: Über die Registry (Letzter angemeldeter Benutzer)
+    if (-not $actualLoggedInUser) {
+        $lastUser = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI" -Name LastLoggedOnUser -ErrorAction SilentlyContinue
+        if ($lastUser) {
+            $actualLoggedInUser = $lastUser.LastLoggedOnUser
+            Write-Host "Ermittelter angemeldeter Benutzer (Registry-Fallback): $actualLoggedInUser" -ForegroundColor Cyan
+        }
+    }
+} catch {
+    Write-Warning "Fehler bei der Benutzerermittlung: $_"
+}
+
+# Melde den erkannten Benutzer im Protokoll
+if ($actualLoggedInUser) {
+    Write-Host "Ausführender Benutzer: $currentUser, Angemeldeter Benutzer: $actualLoggedInUser" -ForegroundColor Green
+} else {
+    Write-Host "Kein separater angemeldeter Benutzer erkannt. Verwende: $currentUser" -ForegroundColor Yellow
+    $actualLoggedInUser = $currentUser
 }
 
 # Speicherpfad & Encoding
@@ -87,17 +185,61 @@ try {
 function Get-SystemData {
     param (
         [string]$Command,
-        [scriptblock]$ScriptBlock
+        [scriptblock]$ScriptBlock,
+        [switch]$RunParallel
     )
     
-    try { 
-        Write-Progress -Activity "Sammle Systeminformationen" -Status $Command
-        & $ScriptBlock 
+    if ($RunParallel) {
+        # Parallele Ausführung via Runspace
+        try {
+            $powershell = [powershell]::Create().AddScript($ScriptBlock)
+            $powershell.RunspacePool = $runspacePool
+            
+            return [PSCustomObject]@{
+                Name = $Command
+                Powershell = $powershell
+                Handle = $powershell.BeginInvoke()
+            }
+        } catch {
+            Write-Warning "❌ Fehler beim Starten des parallelen Tasks '$Command': $_"
+            return $null
+        }
     }
-    catch { 
-        Write-Warning "❌ Fehler bei '$Command': $_"
-        return "❌ Fehler bei '$Command'" 
+    else {
+        try { 
+            Write-Progress -Activity "Sammle Systeminformationen" -Status $Command
+            & $ScriptBlock 
+        }
+        catch { 
+            Write-Warning "❌ Fehler bei '$Command': $_"
+            return "❌ Fehler bei '$Command'" 
+        }
     }
+}
+
+# Hilfsfunktion zum Sammeln der Ergebnisse aus parallelen Jobs
+function Get-ParallelResults {
+    param(
+        [Parameter(Mandatory = $true)]
+        [array]$Jobs
+    )
+    
+    $results = @{}
+    
+    foreach ($job in $Jobs) {
+        try {
+            $result = $job.Powershell.EndInvoke($job.Handle)
+            $results[$job.Name] = $result
+        }
+        catch {
+            $results[$job.Name] = "❌ Fehler bei paralleler Ausführung: $_"
+        }
+        finally {
+            $job.Powershell.Dispose()
+        }
+    }
+    
+    return $results
 }
 
 function Write-Status {
@@ -156,6 +298,117 @@ function Get-CounterSafe {
 
 #region DATA COLLECTION
 $SystemData = @{}
+
+# Parallele Datensammlung für zeitintensive Abfragen
+$parallelJobs = @()
+
+# Starte parallele Aufgaben für zeitintensive Abfragen
+$parallelJobs = @()
+
+# SystemEvents-Task
+$scriptBlock1 = {
+    $out = @()
+    $out += "⚠️ Kritische Ereignisse der letzten 7 Tage:"
+    
+    try {
+        $lastWeek = (Get-Date).AddDays(-7)
+        $criticalEvents = Get-WinEvent -FilterHashtable @{
+            LogName   = @('System', 'Application')
+            Level     = 1, 2  # Error oder Critical
+            StartTime = $lastWeek
+        } -MaxEvents 50 -ErrorAction SilentlyContinue
+        
+        if ($criticalEvents.Count -gt 0) {
+            foreach ($evt in $criticalEvents) {
+                $timeStr = $evt.TimeCreated.ToString("yyyy-MM-dd HH:mm")
+                $levelSymbol = if ($evt.Level -eq 1) { "🔴" } else { "🟠" }
+                $out += "$levelSymbol [$timeStr] $($evt.ProviderName): $($evt.Message.Split("`n")[0])"
+            }
+        } else {
+            $out += "🟢 Keine kritischen Ereignisse in den letzten 7 Tagen gefunden"
+        }
+    } catch {
+        $out += "🟡 Fehler beim Lesen der Ereignisprotokolle: $_"
+    }
+    
+    return $out
+}
+$parallelJobs += Get-SystemData -Command "SystemEvents" -ScriptBlock $scriptBlock1 -RunParallel
+
+# InstalledSoftware-Task
+$scriptBlock2 = {
+    $out = @()
+    $out += "📦 Installierte Software:"
+    
+    try {
+        $software = @()
+        # 64-bit Software
+        $software += Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* |
+                    Where-Object { $_.DisplayName -ne $null } |
+                    Select-Object DisplayName, DisplayVersion, Publisher, InstallDate
+        
+        # 32-bit Software auf 64-bit System
+        if (Test-Path 'HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\') {
+            $software += Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* |
+                        Where-Object { $_.DisplayName -ne $null } |
+                        Select-Object DisplayName, DisplayVersion, Publisher, InstallDate
+        }
+        
+        # Top 15 Programme nach Installationsdatum sortiert
+        $software = $software | Sort-Object InstallDate -Descending | Select-Object -First 15
+        
+        foreach ($app in $software) {
+            $out += "  - $($app.DisplayName) v$($app.DisplayVersion) von $($app.Publisher)"
+        }
+        
+        $out += "  [...]"
+        $out += "  Insgesamt installierte Programme: $($software.Count)"
+    } catch {
+        $out += "🟡 Fehler beim Auflisten der installierten Software: $_"
+    }
+    
+    return $out
+}
+$parallelJobs += Get-SystemData -Command "InstalledSoftware" -ScriptBlock $scriptBlock2 -RunParallel
+
+# WindowsUpdates-Task
+$scriptBlock3 = {
+    $out = @()
+    $out += "🔄 Windows Update-Status:"
+    
+    try {
+        $session = New-Object -ComObject Microsoft.Update.Session
+        $searcher = $session.CreateUpdateSearcher()
+        
+        # Letzte Prüfung
+        $lastCheck = $searcher.GetTotalHistoryCount()
+        if ($lastCheck -gt 0) {
+            $lastUpdate = $searcher.QueryHistory(0, 1) | Select-Object -First 1
+            $out += "  Letztes Update: $($lastUpdate.Title) ($($lastUpdate.Date))"
+            
+            # Ausstehende Updates
+            $pendingUpdates = $searcher.Search("IsInstalled=0 and IsHidden=0").Updates
+            if ($pendingUpdates.Count -gt 0) {
+                $out += "🟡 $($pendingUpdates.Count) ausstehende Updates gefunden!"
+                $pendingUpdates | Select-Object -First 5 | ForEach-Object {
+                    $out += "  - $($_.Title)"
+                }
+                if ($pendingUpdates.Count -gt 5) {
+                    $out += "  - [...und $($pendingUpdates.Count - 5) weitere]"
+                }
+            } else {
+                $out += "🟢 System ist auf dem neuesten Stand"
+            }
+        } else {
+            $out += "🟡 Keine Update-Historie gefunden"
+        }
+    } catch {
+        $out += "🟡 Fehler beim Prüfen der Windows Updates: $_"
+    }
+    
+    return $out
+}
+$parallelJobs += Get-SystemData -Command "WindowsUpdates" -ScriptBlock $scriptBlock3 -RunParallel
 
 # Allgemeine Systeminformationen
 $SystemData.SystemInfo = Get-SystemData "Systeminformationen" {
@@ -611,59 +864,170 @@ $SystemData.ActiveDirectoryInfo = Get-SystemData "Active Directory & GPO" {
     $out = @()
     $isInDomain = $false
     
-    # 1. Domänenmitgliedschaft prüfen
+    #region 1. Check Domain Membership
     try {
         $computerSystem = Get-WmiObject Win32_ComputerSystem
         $isInDomain = $computerSystem.PartOfDomain
+        $domain = $computerSystem.Domain
         
+        # Domain status and role
         if ($isInDomain) {
-            $domainStatus = 'OK'
-            $out += Write-Status "Computer ist Mitglied der Domäne: $($computerSystem.Domain)" $domainStatus
-            $out += "Domänenrolle: $((Get-DomänenrolleText $computerSystem.DomainRole))"
+            $out += Write-Status "Computer ist Mitglied der Domäne: $domain" 'OK'
             
-            # Domänen-Funktionsebene und Infrastruktur
+            # Determine domain role
+            $roleText = switch ($computerSystem.DomainRole) {
+                0 { "Eigenständige Arbeitsstation" }
+                1 { "Mitglied einer Arbeitsgruppe" }
+                2 { "Domänenmitglied" }
+                3 { "Domänencontroller" }
+                4 { "Backup-Domänencontroller" }
+                5 { "Primärer Domänencontroller" }
+                default { "Unbekannt ($($computerSystem.DomainRole))" }
+            }
+            $out += "Domänenrolle: $($computerSystem.DomainRole) - $roleText"
+            
+            # Check for contradiction between PartOfDomain and DomainRole
+            if ($computerSystem.DomainRole -lt 2) {
+                $out += Write-Status "Widerspruch: Computer meldet Domänenmitgliedschaft, aber Rolle ist: $roleText" 'WARN'
+                
+                # Check user context
+                $scriptUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+                $isDomainScriptUser = $scriptUser -match [regex]::Escape($domain)
+                
+                if ($elevatedContext -and $actualLoggedInUser -and $scriptUser -ne $actualLoggedInUser) {
+                    # Script running with admin rights but as different user
+                    $isDomainActualUser = $actualLoggedInUser -match [regex]::Escape($domain)
+                    
+                    if ($isDomainActualUser) {
+                        $out += Write-Status "Skript wird als Administrator ausgeführt, aber ein Domänenbenutzer ist angemeldet" 'WARN'
+                        $out += "Angemeldet: $actualLoggedInUser | Skript läuft als: $scriptUser"
+                    } 
+                    elseif (!$isDomainScriptUser) {
+                        $out += Write-Status "Lokaler Benutzer statt Domänenbenutzer" 'WARN'
+                        $out += "Bitte als Domänenbenutzer anmelden für volle Funktionalität"
+                    }
+                } 
+                elseif (!$isDomainScriptUser) {
+                    $out += Write-Status "Lokaler Benutzer statt Domänenbenutzer" 'WARN'
+                    $out += "Bitte als Domänenbenutzer anmelden für volle Funktionalität"
+                }
+            } else {
+                $out += "Domänenrolle: $($computerSystem.DomainRole) - $roleText"
+            }
+            #endregion
+            
+            #region 2. Domain Function Level and Infrastructure
             try {
-                # Prüfen, ob das AD-Modul verfügbar ist
+                # Check if AD module is available
                 if (Get-Module -ListAvailable -Name ActiveDirectory) {
-                    Import-Module ActiveDirectory -ErrorAction SilentlyContinue
-                    
-                    $domainInfo = Get-ADDomain -ErrorAction SilentlyContinue
-                    if ($domainInfo) {
-                        $out += "`n--- Domänen-Informationen ---"
-                        $out += "Domänenname (NetBIOS): $($domainInfo.NetBIOSName)"
-                        $out += "Domänenname (DNS): $($domainInfo.DNSRoot)"
-                        $out += "Funktionsebene: $($domainInfo.DomainMode)"
-                        $out += "PDC-Emulator: $($domainInfo.PDCEmulator)"
-                        
-                        # Domain Controller erreichbar
-                        $dcTest = Test-Connection -ComputerName $domainInfo.PDCEmulator -Count 1 -Quiet -ErrorAction SilentlyContinue
-                        $dcStatus = if ($dcTest) { 'OK' } else { 'CRIT' }
-                        $out += Write-Status "PDC-Erreichbarkeit: $dcTest" $dcStatus
+                    # Improved error handling when importing module
+                    try {
+                        Import-Module ActiveDirectory -ErrorAction Stop
+                    }
+                    catch {
+                        $out += "Warnung: ActiveDirectory-Modul konnte nicht geladen werden: $_"
                     }
                     
-                    # Computerkontodetails
-                    $computerObj = Get-ADComputer $env:COMPUTERNAME -Properties * -ErrorAction SilentlyContinue
-                    if ($computerObj) {
-                        $out += "`n--- Computer-Kontoinformationen ---"
-                        $out += "Erstellungsdatum: $($computerObj.Created)"
-                        $out += "Letzte Kennwortänderung: $($computerObj.PasswordLastSet)"
-                        
-                        # Computerkonto-Status prüfen
-                        $accountStatus = if ($computerObj.Enabled) { 'OK' } else { 'CRIT' }
-                        $out += Write-Status "Konto aktiv: $($computerObj.Enabled)" $accountStatus
-                        
-                        # Letzte Anmeldung/Kontakt
-                        $lastLogon = if ($computerObj.LastLogonDate) { $computerObj.LastLogonDate } else { "Nie" }
-                        $out += "Letzte Anmeldung: $lastLogon"
-                    }
-                    
-                    # Domain-Vertrauensstellungen
-                    $trusts = Get-ADTrust -Filter * -ErrorAction SilentlyContinue
-                    if ($trusts) {
-                        $out += "`n--- Domänen-Vertrauensstellungen ---"
-                        foreach ($trust in $trusts) {
-                            $out += "Vertrauensstellung zu: $($trust.Name) (Typ: $($trust.TrustType), Richtung: $($trust.TrustDirection))"
+                    # Improved error handling for AD queries
+                    try {
+                        $domainInfo = Get-ADDomain -ErrorAction Stop
+                        if ($domainInfo) {
+                            $out += "`n--- Domänen-Informationen ---"
+                            $out += "Domänenname (NetBIOS): $($domainInfo.NetBIOSName)"
+                            $out += "Domänenname (DNS): $($domainInfo.DNSRoot)"
+                            $out += "Funktionsebene: $($domainInfo.DomainMode)"
+                            $out += "PDC-Emulator: $($domainInfo.PDCEmulator)"
+                            
+                            # Domain Controller reachability
+                            $dcTest = Test-Connection -ComputerName $domainInfo.PDCEmulator -Count 1 -Quiet -ErrorAction SilentlyContinue
+                            $dcStatus = if ($dcTest) { 'OK' } else { 'CRIT' }
+                            $out += Write-Status "PDC-Erreichbarkeit: $dcTest" $dcStatus
                         }
+                    }
+                    catch {
+                        $out += "Fehler bei AD-Domänenabfrage: $_"
+                        
+                        # Alternative method with WMI
+                        try {
+                            $domain = $computerSystem.Domain
+                            $out += "`n--- Domänen-Informationen (alternative Methode) ---"
+                            $out += "Domänenname: $domain"
+                            
+                            # Ping test to domain name
+                            $domainPing = Test-Connection -ComputerName $domain -Count 1 -Quiet -ErrorAction SilentlyContinue
+                            $domainStatus = if ($domainPing) { 'OK' } else { 'WARN' }
+                            $out += Write-Status "Domäne erreichbar: $domainPing" $domainStatus
+                            
+                            # Check for typical AD services
+                            $out += "`n--- Domänendienst-Erreichbarkeit ---"
+                            
+                            # Check DNS SRV entries for AD
+                            try {
+                                $dcRecords = Resolve-DnsName -Name "_ldap._tcp.$domain" -Type SRV -ErrorAction Stop
+                                if ($dcRecords) {
+                                    $out += Write-Status "DNS-SRV-Einträge für Domänencontroller gefunden" 'OK'
+                                    $out += "Gefundene Domänencontroller:"
+                                    
+                                    # Only use valid DC records with names
+                                    $validDCs = $dcRecords | Where-Object { $_.NameTarget -and -not [string]::IsNullOrWhiteSpace($_.NameTarget) }
+                                    
+                                    if ($validDCs.Count -gt 0) {
+                                        foreach ($dc in $validDCs) {
+                                            $out += "  - $($dc.NameTarget) (Priorität: $($dc.Priority))"
+                                            
+                                            # Additional test for typical AD ports
+                                            try {
+                                                $portTest = Test-NetConnection -ComputerName $dc.NameTarget -Port 389 -WarningAction SilentlyContinue -ErrorAction Stop
+                                                $ldapStatus = if ($portTest.TcpTestSucceeded) { 'OK' } else { 'WARN' }
+                                                $out += Write-Status "    LDAP-Port (389) erreichbar: $($portTest.TcpTestSucceeded)" $ldapStatus
+                                            } catch {
+                                                $out += "    LDAP-Port-Test fehlgeschlagen: $_"
+                                            }
+                                        }
+                                    } else {
+                                        $out += Write-Status "  Keine gültigen Domänencontroller-Einträge gefunden" 'WARN'
+                                    }
+                                }
+                            } catch {
+                                $out += Write-Status "Keine DNS-SRV-Einträge für Domänencontroller gefunden: $_" 'WARN'
+                            }
+                        }
+                        catch {
+                            $out += "Alternative Methode zur Domänenprüfung fehlgeschlagen: $_"
+                        }
+                    }
+                    
+                    # Computer account details
+                    try {
+                        $computerObj = Get-ADComputer $env:COMPUTERNAME -Properties * -ErrorAction SilentlyContinue
+                        if ($computerObj) {
+                            $out += "`n--- Computer-Kontoinformationen ---"
+                            $out += "Erstellungsdatum: $($computerObj.Created)"
+                            $out += "Letzte Kennwortänderung: $($computerObj.PasswordLastSet)"
+                            
+                            # Check computer account status
+                            $accountStatus = if ($computerObj.Enabled) { 'OK' } else { 'CRIT' }
+                            $out += Write-Status "Konto aktiv: $($computerObj.Enabled)" $accountStatus
+                            
+                            # Last logon/contact
+                            $lastLogon = if ($computerObj.LastLogonDate) { $computerObj.LastLogonDate } else { "Nie" }
+                            $out += "Letzte Anmeldung: $lastLogon"
+                        }
+                    } catch {
+                        $out += "Fehler beim Abrufen der Computer-Kontoinformationen: $_"
+                    }
+                    
+                    # Domain trusts
+                    try {
+                        $trusts = Get-ADTrust -Filter * -ErrorAction SilentlyContinue
+                        if ($trusts) {
+                            $out += "`n--- Domänen-Vertrauensstellungen ---"
+                            foreach ($trust in $trusts) {
+                                $out += "Vertrauensstellung zu: $($trust.Name) (Typ: $($trust.TrustType), Richtung: $($trust.TrustDirection))"
+                            }
+                        }
+                    } catch {
+                        # Ignore if no trusts found
                     }
                 } else {
                     $out += "`nHinweis: Das ActiveDirectory-Modul ist nicht installiert. Erweiterte AD-Informationen sind nicht verfügbar."
@@ -672,11 +1036,12 @@ $SystemData.ActiveDirectoryInfo = Get-SystemData "Active Directory & GPO" {
             catch {
                 $out += "Fehler beim Abrufen von AD-Informationen: $_"
             }
+            #endregion
             
-            # 2. Gruppenrichtlinien-Status
+            #region 3. Group Policy Status
             $out += "`n--- Gruppenrichtlinien-Status ---"
             
-            # GPO-Basisprüfung mit RSOP
+            # GPO basic check with RSOP
             try {
                 # GPO Last Refresh
                 $gpoLastRefresh = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Group Policy\State\Machine" -Name RefreshTimeLast -ErrorAction SilentlyContinue
@@ -687,19 +1052,35 @@ $SystemData.ActiveDirectoryInfo = Get-SystemData "Active Directory & GPO" {
                     $out += Write-Status "Letzte GPO-Aktualisierung: $($lastRefreshTime) (vor $([math]::Round($timeSinceRefresh.TotalHours, 1)) Stunden)" $refreshStatus
                 }
                 
-                # GPResult-Ausgabe für wichtige Einstellungen
+                # GPResult output for important settings
                 $gpResultOutput = & gpresult /r
                 
-                # Gruppenrichtlinien-Fehlermeldungen suchen
-                $gpErrors = $gpResultOutput | Where-Object { $_ -match "Fehler" -or $_ -match "nicht angewendet" }
+                # Group error signatures for better overview
+                $gpErrors = $gpResultOutput | Where-Object { 
+                    $_ -match "Fehler" -or 
+                    $_ -match "nicht angewendet" -or 
+                    $_ -match "herausgefilterte" 
+                }
+                
                 if ($gpErrors) {
-                    $out += Write-Status "Gruppenrichtlinien-Fehler gefunden:" 'WARN'
-                    foreach ($gpError in $gpErrors) {
-                        $out += "  - $gpError"
+                    # Filter out empty or unnecessary errors
+                    $significantErrors = $gpErrors | Where-Object { 
+                        -not [string]::IsNullOrWhiteSpace($_) -and 
+                        $_ -notmatch "^\s+$" -and
+                        $_ -notmatch "Filterung:\s+Nicht angewendet \(Leer\)$"
+                    }
+                    
+                    if ($significantErrors.Count -gt 0) {
+                        $out += Write-Status "Gruppenrichtlinien-Fehler gefunden:" 'WARN'
+                        foreach ($gpError in $significantErrors) {
+                            $out += "  - $gpError"
+                        }
+                    } else {
+                        $out += "Keine signifikanten GPO-Fehler gefunden"
                     }
                 }
                 
-                # Angewendete Computerrichtlinien
+                # Applied computer policies
                 $computerPolicies = @()
                 $inComputerSection = $false
                 
@@ -725,10 +1106,10 @@ $SystemData.ActiveDirectoryInfo = Get-SystemData "Active Directory & GPO" {
                     $out += "Keine Computer-Gruppenrichtlinien angewendet"
                 }
                 
-                # Sicherheitsrelevante Einstellungen prüfen
+                # Check security-relevant settings
                 $out += "`n--- Sicherheitsrelevante GPO-Einstellungen ---"
                 
-                # Lokale Administratorgruppe (über WMI)
+                # Local Administrator group (via WMI)
                 try {
                     $adminGroup = Get-WmiObject Win32_Group -Filter "LocalAccount=True AND SID='S-1-5-32-544'"
                     $adminMembers = Get-WmiObject Win32_GroupUser -Filter "GroupComponent=""Win32_Group.Domain='$($env:COMPUTERNAME)',Name='$($adminGroup.Name)'"""
@@ -750,7 +1131,7 @@ $SystemData.ActiveDirectoryInfo = Get-SystemData "Active Directory & GPO" {
                     $out += "Fehler beim Abrufen der lokalen Administratoren: $_"
                 }
                 
-                # Kennwortrichtlinie prüfen
+                # Check password policy
                 try {
                     $pwdPolicy = Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters" -ErrorAction SilentlyContinue
                     if ($pwdPolicy) {
@@ -762,93 +1143,550 @@ $SystemData.ActiveDirectoryInfo = Get-SystemData "Active Directory & GPO" {
                     $out += "Fehler beim Abrufen der Kennwortrichtlinie: $_"
                 }
                 
-                # Offlinefiles (für Laptops relevant)
+                # Offline files (relevant for laptops)
                 try {
                     $offlineFiles = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\NetCache" -Name Enabled -ErrorAction SilentlyContinue
                     if ($offlineFiles) {
                         $out += "Offlinefiles Status: " + $(if ($offlineFiles.Enabled -eq 1) { "Aktiviert" } else { "Deaktiviert" })
                     }
-                } catch {
-                    # Ignorieren wenn nicht vorhanden
+                } 
+                catch {
+                    # Ignore if not present
                 }
-                
-                # Detaillierte GPO-Ausgabe generieren
+            
+                # Generate detailed GPO output
                 $gpoDetailsFile = "$env:TEMP\GPODetails.html"
                 Start-Process -FilePath gpresult -ArgumentList "/h", "`"$gpoDetailsFile`"", "/f" -NoNewWindow -Wait
                 if (Test-Path $gpoDetailsFile) {
                     $out += "`nDetaillierter GPO-Bericht wurde erstellt unter: $gpoDetailsFile"
                 }
-                
-            } catch {
+            }
+            catch {
                 $out += "Fehler beim Abrufen des GPO-Status: $_"
             }
+            #endregion
             
-            # 3. Kerberos und Authentifizierungsstatusinformationen
+            #region 4. Kerberos and Authentication Status
             $out += "`n--- Kerberos & Authentifizierung ---"
             
-            # Kerberos-Tickets abrufen
+            # Get Kerberos tickets
             try {
                 $tickets = klist 2>&1
                 if ($tickets -notmatch "Es wurden keine Anmeldeinformationen gefunden" -and 
                     $tickets -notmatch "No credentials" -and
                     $tickets -notmatch "failed") {
                     
+                    # Enhanced detection of valid tickets
                     $validTicket = $tickets -match "krbtgt"
-                    $ticketStatus = if ($validTicket) { 'OK' } else { 'WARN' }
-                    $out += Write-Status "Gültiges Kerberos-Ticket: $($validTicket -ne $null)" $ticketStatus
+                    if ($validTicket) {
+                        $ticketStatus = 'OK'
+                        $out += Write-Status "Gültiges Kerberos-Ticket vorhanden" $ticketStatus
+                    } else {
+                        $ticketStatus = 'WARN'
+                        $out += Write-Status "Kein Kerberos-TGT-Ticket gefunden" $ticketStatus
+                    }
                     
-                    # Anzahl der Tickets
-                    $ticketCount = ($tickets | Where-Object { $_ -match "Valid starting" }).Count
+                    # Ticket count
+                    $ticketCount = ($tickets | Where-Object { $_ -match "Valid starting" -or $_ -match "Gültig ab" }).Count
                     $out += "Anzahl Kerberos-Tickets: $ticketCount"
                 } else {
                     $out += Write-Status "Keine Kerberos-Tickets gefunden" 'WARN'
+                    
+                    # Show diagnostics and tips
+                    $out += "`nDiagnose für fehlende Kerberos-Tickets:"
+                    
+                    # Check if kinit is available (if Kerberos client is installed)
+                    try {
+                        $kinitTest = Get-Command kinit -ErrorAction SilentlyContinue
+                        if ($kinitTest) {
+                            $out += "  - Kerberos-Client ist installiert"
+                        }
+                    } catch {
+                        # Ignore if not available
+                    }
+                    
+                    # Check Secure Channel
+                    try {
+                        $nltest = nltest /sc_query:$($computerSystem.Domain) 2>&1
+                        if ($nltest -match "NERR_Success") {
+                            $out += "  - Secure Channel zur Domäne ist aktiv"
+                        } else {
+                            $out += "  - Problem mit Secure Channel zur Domäne festgestellt"
+                            $out += "    Empfehlung: nltest /sc_reset:$($computerSystem.Domain) ausführen"
+                        }
+                    } catch {
+                        # Ignore if nltest not available
+                    }
+                    
+                    # Recommend ticket renewal
+                    $out += "  - Empfehlung zur Ticketaktualisierung:"
+                    $out += "    1. Abmelden und wieder anmelden"
+                    $out += "    2. Kennwort-Aktualisierung durchführen"
+                    $out += "    3. Zeitdifferenz zwischen Client und DC prüfen"
+                    $out += "    4. Verwenden Sie 'klist purge' um den Ticketspeicher zu leeren"
                 }
             } catch {
                 $out += "Fehler beim Abrufen der Kerberos-Tickets: $_"
+                
+                # Alternative method for Kerberos status
+                try {
+                    $nltest = nltest /sc_query:$($computerSystem.Domain) 2>&1
+                    if ($nltest -match "NERR_Success") {
+                        $out += Write-Status "Secure Channel zur Domäne aktiv (nltest)" 'OK'
+                    } else {
+                        $out += Write-Status "Secure Channel zur Domäne hat Probleme (nltest)" 'WARN'
+                    }
+                } catch {
+                    # Ignore if nltest not available
+                }
             }
+            #endregion
             
-            # LDAP-Bindung überprüfen
+            #region 5. LDAP Binding Check
             try {
                 $domain = $computerSystem.Domain
                 $ldapPath = "LDAP://$domain"
-                $directoryEntry = New-Object System.DirectoryServices.DirectoryEntry($ldapPath)
+                $ldapSuccess = $false
+                $methodUsed = ""
                 
-                if ($directoryEntry.Name -ne $null) {
-                    $out += Write-Status "LDAP-Bindung zur Domäne erfolgreich" 'OK'
+                # Method 1: Standard DirectoryEntry with current credentials
+                try {
+                    $directoryEntry = New-Object System.DirectoryServices.DirectoryEntry($ldapPath)
+                    if ($directoryEntry.Name -ne $null) {
+                        $ldapSuccess = $true
+                        $methodUsed = "Standard DirectoryEntry"
+                    }
+                } catch {
+                    # Log error and continue with alternative methods
+                    $method1Error = $_
+                }
+                
+                # Method 2: System.DirectoryServices.Protocols if Method 1 fails
+                if (-not $ldapSuccess) {
+                    try {
+                        Add-Type -AssemblyName System.DirectoryServices.Protocols
+                        $conn = New-Object System.DirectoryServices.Protocols.LdapConnection($domain)
+                        $conn.Bind()
+                        $ldapSuccess = $true
+                        $methodUsed = "DirectoryServices.Protocols"
+                    } catch {
+                        # Log error and continue with alternative methods
+                        $method2Error = $_
+                    }
+                }
+                
+                # Method 3: ADSI provider with port 389 (standard) or 636 (SSL)
+                if (-not $ldapSuccess) {
+                    try {
+                        # Try with standard LDAP port 389
+                        $rootDSE = [ADSI]"LDAP://$domain:389/RootDSE"
+                        $rootDSE.RefreshCache()
+                        if ($rootDSE.Properties["defaultNamingContext"]) {
+                            $ldapSuccess = $true
+                            $methodUsed = "ADSI Provider (Port 389)"
+                        }
+                    } catch {
+                        # Try with LDAP-SSL port 636
+                        try {
+                            $rootDSE = [ADSI]"LDAP://$domain:636/RootDSE"
+                            $rootDSE.RefreshCache()
+                            if ($rootDSE.Properties["defaultNamingContext"]) {
+                                $ldapSuccess = $true
+                                $methodUsed = "ADSI Provider (Port 636 - SSL)"
+                            }
+                        } catch {
+                            # All ADSI attempts failed
+                            $method3Error = $_
+                        }
+                    }
+                }
+                
+                # Method 4: Global Catalog attempt via port 3268
+                if (-not $ldapSuccess) {
+                    try {
+                        $gc = [ADSI]"GC://$domain:3268"
+                        $gc.RefreshCache()
+                        if ($gc.Name -ne $null) {
+                            $ldapSuccess = $true
+                            $methodUsed = "Global Catalog (Port 3268)"
+                        }
+                    } catch {
+                        # Global Catalog not available
+                        $method4Error = $_
+                    }
+                }
+                
+                if ($ldapSuccess) {
+                    $out += Write-Status "LDAP-Bindung zur Domäne erfolgreich ($methodUsed)" 'OK'
                 } else {
-                    $out += Write-Status "LDAP-Bindung zur Domäne fehlgeschlagen" 'CRIT'
+                    # Fallback: DNS test to domain controller
+                    $dcTest = Test-Connection -ComputerName $domain -Count 1 -Quiet -ErrorAction SilentlyContinue
+                    if ($dcTest) {
+                        $out += Write-Status "LDAP-Bindung fehlgeschlagen, aber DC erreichbar via Ping" 'WARN'
+                        $out += "`nDomänen-Authentifizierungsdiagnose:"
+                        
+                        # Test network reachability
+                        $out += "  1. Netzwerk-Konnektivität zum DC: Vorhanden"
+                        
+                        # Extended diagnostics: Show error details
+                        $out += "`n  - LDAP-Fehlerdetails:"
+                        if ($method1Error) { $out += "    • Methode 1 (DirectoryEntry): $($method1Error.Message)" }
+                        if ($method2Error) { $out += "    • Methode 2 (DirectoryServices.Protocols): $($method2Error.Message)" }
+                        if ($method3Error) { $out += "    • Methode 3 (ADSI Provider): $($method3Error.Message)" }
+                        if ($method4Error) { $out += "    • Methode 4 (Global Catalog): $($method4Error.Message)" }
+                        
+                        #region 6. Extended Domain Diagnostics
+                        try {
+                            $computerNetBIOS = $env:COMPUTERNAME
+                            $dnsServer = (Get-DnsClientServerAddress -AddressFamily IPv4 | 
+                                          Where-Object {$_.ServerAddresses -ne $null} | 
+                                          Select-Object -First 1).ServerAddresses[0]
+                            
+                            # Test DNS resolution
+                            $dnsTest = Resolve-DnsName -Name $domain -Server $dnsServer -Type A -ErrorAction SilentlyContinue
+                            if ($dnsTest) {
+                                $out += "  2. DNS-Auflösung für Domain: Erfolgreich"
+                                # Additional DNS information
+                                $out += "    • Domänencontroller-IPs:"
+                                try {
+                                    $dcIPs = Resolve-DnsName -Name $domain -Type A -ErrorAction SilentlyContinue | 
+                                             Select-Object -ExpandProperty IPAddress
+                                    foreach ($ip in $dcIPs) {
+                                        $out += "      - $ip"
+                                    }
+                                } catch {
+                                    $out += "      Keine DCs über DNS gefunden"
+                                }
+                            } else {
+                                $out += "  2. DNS-Auflösung für Domain: Fehlgeschlagen - Mögliches DNS-Problem"
+                                # Show DNS server information
+                                $out += "    • DNS-Server: $dnsServer"
+                                $out += "    • Alternativer Test mit nslookup:"
+                                try {
+                                    $nslookup = nslookup $domain 2>&1
+                                    $out += "      " + ($nslookup -join "`n      ")
+                                } catch {
+                                    $out += "      Nslookup fehlgeschlagen"
+                                }
+                            }
+                        } catch {
+                            $out += "  Fehler bei DNS-Tests: $_"
+                        }
+                        
+                        # Test time synchronization
+                        try {
+                            $timeServer = $domain
+                            $w32tm = w32tm /stripchart /computer:$timeServer /samples:1 /dataonly 2>&1
+                            if ($w32tm -match "Fehler|Error") {
+                                $out += "  3. Zeitsynchronisation mit DC: Problem - Zeitabweichung könnte Kerberos beeinträchtigen"
+                                
+                                # Extended time synchronization diagnostics
+                                $out += "    • Lokale Zeiteinstellungen:"
+                                try {
+                                    $timeInfo = w32tm /query /status 2>&1
+                                    $out += "      Zeitquelle: " + (($timeInfo | Where-Object { $_ -match "Source:" }) -replace "Source:", "").Trim()
+                                    $out += "      Letztes Sync: " + (($timeInfo | Where-Object { $_ -match "Last Sync Time:" }) -replace "Last Sync Time:", "").Trim()
+                                    
+                                    # Calculate current time difference
+                                    try {
+                                        $netTime = w32tm /monitor /computers:$timeServer 2>&1
+                                        $timeDiff = ($netTime | Where-Object { $_ -match "Offset" }) -replace ".*Offset:\s+([-+]?\d+\.\d+)s.*", '$1'
+                                        if ($timeDiff -match "^[-+]?\d+\.\d+$") {
+                                            $out += "      Zeitdifferenz zum DC: $timeDiff Sekunden"
+                                            # If more than 5 minutes (300 seconds) difference, Kerberos is at risk
+                                            if ([Math]::Abs([double]$timeDiff) -gt 300) {
+                                                $out += "      KRITISCH: Zeitunterschied > 5 Minuten - Kerberos funktioniert nicht!"
+                                            }
+                                        }
+                                    } catch {
+                                        $out += "      Zeitdifferenz konnte nicht ermittelt werden: $_"
+                                    }
+                                } catch {
+                                    $out += "      Zeitsynchronisationsinformationen nicht verfügbar: $_"
+                                }
+                                
+                                # Solution suggestion
+                                $out += "    • Lösungsvorschlag: Führen Sie als Administrator aus:"
+                                $out += "      net time \\$domain /set /yes"
+                            } else {
+                                $out += "  3. Zeitsynchronisation mit DC: Erfolgreich"
+                                # Additional time synchronization details
+                                try {
+                                    $netTime = w32tm /monitor /computers:$timeServer 2>&1
+                                    $timeDiff = ($netTime | Where-Object { $_ -match "Offset" }) -replace ".*Offset:\s+([-+]?\d+\.\d+)s.*", '$1'
+                                    if ($timeDiff -match "^[-+]?\d+\.\d+$") {
+                                        $out += "    • Zeitdifferenz zum DC: $timeDiff Sekunden"
+                                    }
+                                } catch {
+                                    # Ignore if the time difference cannot be retrieved
+                                }
+                            }
+                        } catch {
+                            $out += "  Fehler bei der Zeitsynchronisationsprüfung: $_"
+                        }
+                        
+                        # Check if the computer is reachable
+                        try {
+                            $nltest = nltest /server:$computerNetBIOS /query 2>&1
+                            if ($nltest -match "NERR_Success") {
+                                $out += "  4. Computer-Konto-Status: OK"
+                            } else {
+                                $out += "  4. Computer-Konto-Status: Mögliches Problem - Computerkonto prüfen"
+                                # Details on computer account problem
+                                $out += "    • Nltest-Ausgabe: " + ($nltest -join ", ")
+                            }
+                        } catch {
+                            $out += "  4. Computer-Konto-Status: Konnte nicht geprüft werden"
+                        }
+                        
+                        # Additional Kerberos diagnostic tests
+                        $out += "  5. Kerberos-Ticketstatus:"
+                        try {
+                            $klist = klist 2>&1
+                            $ticketCount = ($klist | Where-Object { $_ -match "^#\d+>" }).Count
+                            
+                            if ($ticketCount -gt 0) {
+                                $out += "    • Gültige Kerberos-Tickets: $ticketCount"
+                                $domainTickets = $klist | Where-Object { $_ -match "krbtgt|$domain" }
+                                if ($domainTickets) {
+                                    $out += "    • Domänen-Tickets vorhanden"
+                                } else {
+                                    $out += "    • Keine Domänen-Tickets gefunden"
+                                }
+                            } else {
+                                $out += "    • Keine Kerberos-Tickets vorhanden"
+                            }
+                        } catch {
+                            $out += "    • Kerberos-Ticket-Status konnte nicht abgerufen werden: $_"
+                        }
+                        #endregion
+                        
+                        #region 7. Diagnostic Tips for Domain Issues
+                        $out += "`nDiagnose-Tipps bei Domänenproblemen:"
+                        $out += "  - Domänenverbindung ist technisch möglich, aber es gibt Authentifizierungsprobleme"
+                        $out += "  - Domäne: $domain (erreichbar, aber keine Authentifizierung möglich)"
+                        $out += "  - Domänenrolle ist $($computerSystem.DomainRole) (sollte 2 oder höher sein)"
+                        
+                        # Concrete solution suggestions
+                        $out += "`nLösungsvorschläge:"
+                        $out += "  1. Computer-Konto zurücksetzen:"
+                        $out += "     netdom.exe reset $env:COMPUTERNAME /domain:$domain /userd:[admin] /passwordd:[passwort]"
+                        $out += "  2. Kerberos-Tickets löschen und neu anfordern:"
+                        $out += "     klist purge"
+                        $out += "     gpupdate /force"
+                        $out += "  3. Prüfen Sie, ob der Computer aus der Domäne entfernt wurde:"
+                        $out += "     nltest /sc_verify:$domain"
+                        $out += "  4. Überprüfen Sie die Windows-Firewall auf blockierte Domänenkommunikation"
+                        $out += "  5. Netzwerkadapter-Probleme ausschließen (deaktivieren/aktivieren)"
+                        #endregion
+                        
+                        #region 8. System State Information
+                        $out += "`nSystemzustand-Informationen:"
+                        
+                        # Current logged-in user
+                        $scriptUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+                        $out += "  - Skript ausgeführt als: $scriptUser"
+                        
+                        # Check for administrator context vs. logged-in user
+                        if ($elevatedContext -and $actualLoggedInUser -and $scriptUser -ne $actualLoggedInUser) {
+                            # Show full path (no truncation)
+                            $out += "  - Angemeldeter Benutzer: $actualLoggedInUser"
+                            
+                            # Universal domain user detection - works with all AD domains
+                            $isDomainActualUser = $false
+                            $detectionMethod = ""
+                            
+                            # Method 1: Check with simple domain pattern (Domain\Username)
+                            if ($actualLoggedInUser -match "^[^\\]+\\") {
+                                $actualUserDomain = ($actualLoggedInUser -split "\\")[0]
+                                # Check if the username contains a domain that is not the computer name
+                                if ($actualUserDomain -ne $env:COMPUTERNAME) {
+                                    $isDomainActualUser = $true
+                                    $detectionMethod = "Domänenbenutzer erkannt: $actualUserDomain ist nicht lokaler Computer $env:COMPUTERNAME"
+                                }
+                            }
+                            
+                            # Method 2: If defined, check against the known domain
+                            if (-not $isDomainActualUser -and $domain -and $actualLoggedInUser -match [regex]::Escape($domain)) {
+                                $isDomainActualUser = $true
+                                $detectionMethod = "Domänenbenutzer erkannt durch Domänenabgleich mit $domain"
+                            }
+                            
+                            # Method 3: Direct Windows API query to check domain membership
+                            if (-not $isDomainActualUser) {
+                                try {
+                                    $user = New-Object System.Security.Principal.WindowsPrincipal([System.Security.Principal.WindowsIdentity]::GetCurrent())
+                                    if ($user.Identity.AuthenticationType -eq "Kerberos") {
+                                        $isDomainActualUser = $true
+                                        $detectionMethod = "Domänenbenutzer erkannt durch Kerberos-Authentifizierung"
+                                    }
+                                } catch {
+                                    # If the query fails, continue with other methods
+                                }
+                            }
+                            
+                            # Method 4: Check via WMI
+                            if (-not $isDomainActualUser) {
+                                try {
+                                    $computerSystem = Get-WmiObject -Class Win32_ComputerSystem
+                                    if ($computerSystem.PartOfDomain) {
+                                        # Computer is part of a domain - check if the user is in the domain
+                                        $userParts = $actualLoggedInUser -split "\\"
+                                        if ($userParts.Count -eq 2) {
+                                            # Compare with the domain from the computer
+                                            if ($userParts[0] -eq $computerSystem.Domain -or $userParts[0] -eq $computerSystem.Domain.Split(".")[0]) {
+                                                $isDomainActualUser = $true
+                                                $detectionMethod = "Domänenbenutzer erkannt durch Abgleich mit Computer-Domäne $($computerSystem.Domain)"
+                                            }
+                                        }
+                                    }
+                                } catch {
+                                    # If the query fails, continue with other methods
+                                }
+                            }
+                            
+                            # Output detection method only if a domain user has been detected
+                            if ($isDomainActualUser) {
+                                $out += "    ($detectionMethod)"
+                                $out += Write-Status "  - Hinweis: Das Skript läuft mit Adminrechten, aber ein Domänenbenutzer ist angemeldet" 'WARN'
+                                $out += "    Die Domänenfunktionen sind für den angemeldeten Benutzer verfügbar, nicht für den Skriptkontext"
+                            } else {
+                                $out += Write-Status "  - Wichtig: Weder das Skript noch der angemeldete Benutzer ist ein Domänenbenutzer" 'WARN'
+                            }
+                        } else {
+                            # Universal domain user detection also for the script user
+                            $isDomainScriptUser = $false
+                            
+                            # Method 1: Check with simple domain pattern (Domain\Username)
+                            if ($scriptUser -match "^[^\\]+\\") {
+                                $scriptUserDomain = ($scriptUser -split "\\")[0]
+                                # Check if the username contains a domain that is not the computer name
+                                if ($scriptUserDomain -ne $env:COMPUTERNAME) {
+                                    $isDomainScriptUser = $true
+                                }
+                            }
+                            
+                            # Method 2: If defined, check against the known domain
+                            if (-not $isDomainScriptUser -and $domain -and $scriptUser -match [regex]::Escape($domain)) {
+                                $isDomainScriptUser = $true
+                            }
+                            
+                            # Method 3: Direct Windows API query to check domain membership
+                            if (-not $isDomainScriptUser) {
+                                try {
+                                    $user = New-Object System.Security.Principal.WindowsPrincipal([System.Security.Principal.WindowsIdentity]::GetCurrent())
+                                    if ($user.Identity.AuthenticationType -eq "Kerberos") {
+                                        $isDomainScriptUser = $true
+                                    }
+                                } catch {
+                                    # If the query fails, continue with other methods
+                                }
+                            }
+                            
+                            # Method 4: Check via WMI
+                            if (-not $isDomainScriptUser) {
+                                try {
+                                    $computerSystem = Get-WmiObject -Class Win32_ComputerSystem
+                                    if ($computerSystem.PartOfDomain) {
+                                        # Computer is part of a domain - check if the user is in the domain
+                                        $userParts = $scriptUser -split "\\"
+                                        if ($userParts.Count -eq 2) {
+                                            # Compare with the domain from the computer
+                                            if ($userParts[0] -eq $computerSystem.Domain -or $userParts[0] -eq $computerSystem.Domain.Split(".")[0]) {
+                                                $isDomainScriptUser = $true
+                                            }
+                                        }
+                                    }
+                                } catch {
+                                    # If the query fails, continue with other methods
+                                }
+                            }
+                            
+                            if (!$isDomainScriptUser) {
+                                $out += Write-Status "  - Wichtig: Sie sind als lokaler Benutzer angemeldet, nicht als Domänenbenutzer" 'WARN'
+                            }
+                        }
+                        
+                        # Check if last login was with domain account
+                        $lastUser = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI" -Name LastLoggedOnUser -ErrorAction SilentlyContinue
+                        if ($lastUser) {
+                            $out += "  - Letzter angemeldeter Benutzer: $($lastUser.LastLoggedOnUser)"
+                            
+                            $isDomainLastUser = $lastUser.LastLoggedOnUser -match [regex]::Escape($domain)
+                            $isDomainScriptUser = $scriptUser -match [regex]::Escape($domain)
+                            if ($isDomainLastUser -and !$isDomainScriptUser -and (!$actualLoggedInUser -or $actualLoggedInUser -ne $lastUser.LastLoggedOnUser)) {
+                                $out += Write-Status "  - Letzter Benutzer war Domänenbenutzer, aktueller ist lokaler Benutzer" 'WARN'
+                                $out += "    Dies erklärt die fehlende Domänen-Konnektivität"
+                            }
+                        }
+                        
+                        # Check if computer name has been changed
+                        $computerNameHistory = Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName" -ErrorAction SilentlyContinue
+                        $activeComputerName = Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName" -ErrorAction SilentlyContinue
+                        if ($computerNameHistory -and $activeComputerName -and 
+                            $computerNameHistory.ComputerName -ne $activeComputerName.ComputerName) {
+                            $out += "  - Warnung: Computer-Name wurde geändert (alt: $($computerNameHistory.ComputerName), neu: $($activeComputerName.ComputerName))"
+                            $out += "  - Computername-Änderung erfordert möglicherweise Aktualisierung in AD"
+                        }
+                        
+                        # Check Netlogon status
+                        $netlogonService = Get-Service "Netlogon" -ErrorAction SilentlyContinue
+                        if ($netlogonService) {
+                            $out += "  - Netlogon-Dienst: $($netlogonService.Status)"
+                        }
+                        #endregion
+                        
+                        #region 9. Recommended Actions
+                        $out += "`nEmpfohlene Maßnahmen zur Behebung:"
+                        
+                        # Specific recommendations based on detected problem
+                        try {
+                            $scriptUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+                            $isDomainScriptUser = $scriptUser -match [regex]::Escape($domain)
+                            
+                            # Check admin context vs. logged-in user
+                            if ($elevatedContext -and $actualLoggedInUser -and $scriptUser -ne $actualLoggedInUser) {
+                                $isDomainActualUser = $actualLoggedInUser -match [regex]::Escape($domain)
+                            
+                                if ($isDomainActualUser) {
+                                    $out += "  - Diese Warnungen betreffen nur den Admin-Skriptkontext ($scriptUser)"
+                                    $out += "  - Der angemeldete Benutzer ($actualLoggedInUser) hat vollen Domänenzugriff"
+                                    $out += "  - Keine Aktion erforderlich, dies ist ein normales Verhalten bei Admin-Ausführung"
+                                    $out += "  - Führen Sie das Skript ohne Adminrechte aus, um die Domänenfunktionen zu nutzen"
+                                    $out += "  - Oder führen Sie es mit einem Domänen-Administratorkonto aus"
+                                } 
+                                elseif (!$isDomainScriptUser) {
+                                    $out += "  - Als Domänenbenutzer anmelden (statt als lokaler Benutzer)"
+                                    $out += "  - Sobald Sie als Domänenbenutzer angemeldet sind, werden alle Domänenfunktionen verfügbar sein"
+                                    $out += "  - Lokaler Benutzer '$scriptUser' hat keinen Zugriff auf Domänenressourcen"
+                                    
+                                    # Check if last user was a domain user
+                                    $lastUser = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI" -Name LastLoggedOnUser -ErrorAction SilentlyContinue
+                                    if ($lastUser -and $lastUser.LastLoggedOnUser -match [regex]::Escape($domain)) {
+                                        $out += "  - Melden Sie sich mit dem Domänenbenutzer '$($lastUser.LastLoggedOnUser)' an"
+                                    }
+                                }
+                            }
+                        } catch {
+                            $out += "  Fehler bei der Benutzerkontext-Analyse: $_"
+                            $out += "  Erweiterte Diagnose fehlgeschlagen"
+                        }
+                        #endregion
+                    }
                 }
             } catch {
-                $out += Write-Status "LDAP-Bindungsfehler: $_" 'CRIT'
+                $out += Write-Status "LDAP-Verbindungsfehler: $_" 'CRIT'
             }
-            
+            #endregion
         } else {
             $out += Write-Status "Computer ist NICHT Teil einer Domäne. Arbeitsgruppe: $($computerSystem.Workgroup)" 'WARN'
         }
-    }
-    catch {
+    } catch {
         $out += "Fehler beim Abrufen der Domäneninformationen: $_"
     }
-    
-    # Hilfsfunktion für die Domänenrolle
-    function Get-DomänenrolleText {
-        param([int]$roleValue)
-        
-        switch ($roleValue) {
-            0 { "Eigenständige Arbeitsstation" }
-            1 { "Mitglied einer Arbeitsgruppe" }
-            2 { "Domänenmitglied" }
-            3 { "Domänencontroller" }
-            4 { "Backup-Domänencontroller" }
-            5 { "Primärer Domänencontroller" }
-            default { "Unbekannt ($roleValue)" }
-        }
-    }
-    
+
     $out -join "`n"
 }
-
-#endregion
 
 #region CRITICAL POINTS SUMMARY
 # Sammeln der kritischen Punkte
@@ -876,6 +1714,17 @@ $SystemData.CriticalSummary = if ($CriticalPoints.Count -gt 0) {
 }
 #endregion
 
+# Sammeln der Ergebnisse aus parallelen Aufgaben
+Write-Progress -Activity "Sammle Ergebnisse der parallelen Aufgaben" -Status "Bitte warten..."
+$parallelResults = Get-ParallelResults -Jobs $parallelJobs
+$SystemData["SystemEvents"] = $parallelResults["SystemEvents"]
+$SystemData["InstalledSoftware"] = $parallelResults["InstalledSoftware"]
+$SystemData["WindowsUpdates"] = $parallelResults["WindowsUpdates"]
+
+# Aufräumen
+$runspacePool.Close()
+$runspacePool.Dispose()
+
 #endregion
 #region REPORT GENERATION
 # Bericht zusammenstellen
@@ -884,6 +1733,9 @@ $Report += "===================================="
 $Report += "📋 SYSTEMBERICHT $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
 $Report += "===================================="
 $Report += "🔑 Ausgeführt als: $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+if ($elevatedContext -and $actualLoggedInUser -and $currentUser -ne $actualLoggedInUser) {
+    $Report += "👤 Angemeldeter Benutzer: $actualLoggedInUser"
+}
 $Report += "🖥  Computername: $env:COMPUTERNAME" 
 $Report += "👤 Admin-Rechte: $isAdmin"
 $Report += "===================================="
